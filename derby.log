@@ -1,0 +1,20 @@
+----------------------------------------------------------------
+Sat Jun 25 16:41:24 CEST 2022:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.9.1.0 - (1344872): instance a816c00e-0181-9b4f-6a36-000037f93a48 
+on database directory /media/eu/Volume/projects/github-ps/entando-plugin-jpcds/target/test/db/entando-plugin-jpcdsconnectortestPort  with class loader jdk.internal.loader.ClassLoaders$AppClassLoader@3d4eac69 
+Loaded from file:/home/eu/.m2/repository/org/apache/derby/derby/10.9.1.0/derby-10.9.1.0.jar
+java.vendor=Private Build
+java.runtime.version=11.0.15+10-Ubuntu-0ubuntu0.20.04.1
+user.dir=/media/eu/Volume/projects/github-ps/entando-plugin-jpcds
+derby.system.home=null
+Database Class Loader started - derby.database.classpath=''
+----------------------------------------------------------------
+Sat Jun 25 16:41:25 CEST 2022:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.9.1.0 - (1344872): instance 120fc126-0181-9b4f-6a36-000037f93a48 
+on database directory /media/eu/Volume/projects/github-ps/entando-plugin-jpcds/target/test/db/entando-plugin-jpcdsconnectortestServ  with class loader jdk.internal.loader.ClassLoaders$AppClassLoader@3d4eac69 
+Loaded from file:/home/eu/.m2/repository/org/apache/derby/derby/10.9.1.0/derby-10.9.1.0.jar
+java.vendor=Private Build
+java.runtime.version=11.0.15+10-Ubuntu-0ubuntu0.20.04.1
+user.dir=/media/eu/Volume/projects/github-ps/entando-plugin-jpcds
+derby.system.home=null
+Database Class Loader started - derby.database.classpath=''
