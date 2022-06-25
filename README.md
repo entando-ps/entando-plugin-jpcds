@@ -1,2 +1,2 @@
 # entando-plugin-jpcds
-Content dlivery server connector
+Content delivery server connector
