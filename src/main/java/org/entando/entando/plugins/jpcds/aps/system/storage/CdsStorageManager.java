@@ -16,6 +16,7 @@ package org.entando.entando.plugins.jpcds.aps.system.storage;
 import com.agiletec.aps.system.EntThreadLocal;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -38,6 +39,7 @@ import org.entando.entando.ent.exception.EntRuntimeException;
 import org.entando.entando.ent.util.EntLogging.EntLogFactory;
 import org.entando.entando.ent.util.EntLogging.EntLogger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -90,17 +92,79 @@ public class CdsStorageManager implements IStorageManager {
     
     @Override
     public String getBaseResourceUrl(boolean isProtected) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        return this.getCdsPublicUrl();
     }
 
     @Override
     public void saveFile(String subPath, boolean isProtectedResource, InputStream is) throws EntException, IOException {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        try {
+            TenantConfig config = this.getTenantConfig();
+            InputStreamResource resource = new InputStreamResource(is);
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("file", resource);
+            body.add("protected", isProtectedResource);
+            body.add("path", subPath);
+            String url = String.format("%s/upload/", this.extractCdsBaseUrl(config, true));
+            String result = this.executePostCall(url, body, config, false);
+            System.out.println("*********************************");
+            System.out.println(result);
+            System.out.println("*********************************");
+        } catch (Exception e) {
+            logger.error("Error saving file", e);
+            throw new EntException("Error saving file", e);
+        }
+    }
+    
+    private String executePostCall(String url, MultiValueMap<String, Object> body, TenantConfig config, boolean force) {
+        try {
+            HttpHeaders headers = this.getBaseHeader(Arrays.asList(MediaType.ALL), config, force);
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+            HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
+            RestTemplate restTemplate = new RestTemplate();
+            ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            return responseEntity.getBody();
+        } catch (HttpClientErrorException e) {
+            if (!force && (e.getStatusCode().equals(HttpStatus.UNAUTHORIZED))) {
+                return this.executePostCall(url, body, config, true);
+            } else {
+                throw new EntRuntimeException("Invalid POST, response status " + e.getStatusCode() + " - url " + url);
+            }
+        }
     }
 
     @Override
     public boolean deleteFile(String subPath, boolean isProtectedResource) throws EntException {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        try {
+            TenantConfig config = this.getTenantConfig();
+            String section = this.getSection(isProtectedResource);
+            String subPathFixed = (!StringUtils.isBlank(subPath)) ? (subPath.trim().startsWith(URL_SEP) ? subPath.trim().substring(1) : subPath) : "";
+            String url = String.format("%s/delete/%s/%s", this.extractCdsBaseUrl(config, true), section, subPathFixed);
+
+            String result = this.executeDeleteCall(url, config, false);
+            System.out.println("*********************************");
+            System.out.println(result);
+            System.out.println("*********************************");
+            return true;
+        } catch (Exception e) {
+            logger.error("Error deleting file", e);
+            throw new EntException("Error deleting file", e);
+        }
+    }
+    
+    private String executeDeleteCall(String url, TenantConfig config, boolean force) {
+        try {
+            HttpHeaders headers = this.getBaseHeader(null, config, force);
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            RestTemplate restTemplate = new RestTemplate();
+            ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.DELETE, entity, String.class);
+            return responseEntity.getBody();
+        } catch (HttpClientErrorException e) {
+            if (!force && e.getStatusCode().equals(HttpStatus.UNAUTHORIZED)) {
+                return this.executeDeleteCall(url, config, true);
+            } else {
+                throw new EntRuntimeException("Invalid DELETE, response status " + e.getStatusCode() + " - url " + url);
+            }
+        }
     }
 
     @Override
@@ -110,12 +174,40 @@ public class CdsStorageManager implements IStorageManager {
 
     @Override
     public void deleteDirectory(String subPath, boolean isProtectedResource) throws EntException {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        //throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
 
     @Override
     public InputStream getStream(String subPath, boolean isProtectedResource) throws EntException {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        String url = null;
+        try {
+            byte[] bytes = null;
+            TenantConfig config = this.getTenantConfig();
+            String section = this.getSection(isProtectedResource);
+            String baseUrl = (null != config) ? 
+                ((isProtectedResource) ? config.getProperty(CDS_PRIVATE_URL_TENANT_PARAM) : config.getProperty(CDS_PUBLIC_URL_TENANT_PARAM)) :
+                ((isProtectedResource) ? this.getCdpPrivateUrl() : this.getCdsPublicUrl());
+            baseUrl = (baseUrl.endsWith(URL_SEP)) ? baseUrl.substring(0, baseUrl.length()-2) : baseUrl;
+            String subPathFixed = (!StringUtils.isBlank(subPath)) ? (subPath.trim().startsWith(URL_SEP) ? subPath.trim().substring(1) : subPath) : "";
+            url = baseUrl + URL_SEP + section + URL_SEP + subPathFixed;
+            if (isProtectedResource) {
+                bytes = this.executeGetCall(url, null, config, false, byte[].class);
+            } else {
+                RestTemplate restTemplate = new RestTemplate();
+                bytes = restTemplate.getForObject(url, byte[].class);
+            }
+            return new ByteArrayInputStream(bytes);
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().equals(HttpStatus.NOT_FOUND)) {
+                logger.info("File Not found - uri {}", url);
+                return null;
+            }  
+            logger.error("Error extracting file", e);
+            throw new EntException("Error extracting file", e);
+        } catch (Exception e) {
+            logger.error("Error extracting file", e);
+            throw new EntException("Error extracting file", e);
+        }
     }
 
     @Override
@@ -135,29 +227,52 @@ public class CdsStorageManager implements IStorageManager {
 
     @Override
     public String[] list(String subPath, boolean isProtectedResource) throws EntException {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        return this.listString(subPath, isProtectedResource, null);
     }
 
     @Override
     public String[] listDirectory(String subPath, boolean isProtectedResource) throws EntException {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        return this.listString(subPath, isProtectedResource, false);
     }
 
     @Override
     public String[] listFile(String subPath, boolean isProtectedResource) throws EntException {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        return this.listString(subPath, isProtectedResource, true);
+    }
+    
+    protected String[] listString(String subPath, boolean isProtectedResource, Boolean file) throws EntException {
+        BasicFileAttributeView[] list = this.listAttributes(subPath, isProtectedResource, file);
+        List<String> names = Arrays.asList(list).stream()
+                .map(bfa -> bfa.getName()).collect(Collectors.toList());
+        return names.stream().toArray(String[]::new);
+    }
+    
+    @Override
+    public BasicFileAttributeView[] listAttributes(String subPath, boolean isProtectedResource) throws EntException {
+        return this.listAttributes(subPath, isProtectedResource, null);
+    }
+    
+    @Override
+    public BasicFileAttributeView[] listDirectoryAttributes(String subPath, boolean isProtectedResource) throws EntException {
+        return this.listAttributes(subPath, isProtectedResource, false);
     }
 
     @Override
-    public BasicFileAttributeView[] listAttributes(String subPath, boolean isProtectedResource) throws EntException {
+    public BasicFileAttributeView[] listFileAttributes(String subPath, boolean isProtectedResource) throws EntException {
+        return this.listAttributes(subPath, isProtectedResource, true);
+    }
+    
+    protected BasicFileAttributeView[] listAttributes(String subPath, boolean isProtectedResource, Boolean file) throws EntException {
         try {
             TenantConfig config = this.getTenantConfig();
             String subPathFixed = (!StringUtils.isBlank(subPath)) ? (subPath.trim().startsWith(URL_SEP) ? subPath.trim().substring(1) : subPath) : "";
             String section = this.getSection(isProtectedResource);
             String url = String.format("%s/list/%s/%s", this.extractCdsBaseUrl(config, true), section, subPathFixed);
-            String responseString = this.executeCall(url, config, false);
+            String responseString = this.executeGetCall(url, Arrays.asList(MediaType.APPLICATION_JSON), config, false, String.class);
             CdsFileAttributeView[] cdsFileList = this.objectMapper.readValue(responseString, new TypeReference<CdsFileAttributeView[]>() {});
-            List<BasicFileAttributeView> list = Arrays.asList(cdsFileList).stream().map(csdf -> {
+            List<BasicFileAttributeView> list = Arrays.asList(cdsFileList).stream()
+                    .filter(csdf -> (null != file) ? ((file) ? !csdf.getDirectory() : csdf.getDirectory()) : true)
+                    .map(csdf -> {
                 BasicFileAttributeView bfa = new BasicFileAttributeView();
                 bfa.setName(csdf.getName());
                 bfa.setDirectory(csdf.getDirectory());
@@ -175,55 +290,31 @@ public class CdsStorageManager implements IStorageManager {
             throw new EntException("Error on list attributes", e);
         }
     }
-    /*
-    private String executeCall(String url, TenantConfig config) {
-        HttpEntity<String> entityFirst = this.getHttpEntity(config, false);
-        RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.GET, entityFirst, String.class);
-        if (responseEntity.getStatusCode().equals(HttpStatus.UNAUTHORIZED)) {
-            HttpEntity<String> entitySecond = this.getHttpEntity(config, true);
-            responseEntity = restTemplate.exchange(url, HttpMethod.GET, entitySecond, String.class);
-            if (!responseEntity.getStatusCode().equals(HttpStatus.OK)) {
-                throw new EntRuntimeException("Invalid GET (2) response status " + responseEntity.getStatusCode() + " - url " + url);
-            }
-        } else if (!responseEntity.getStatusCode().equals(HttpStatus.OK)) {
-            throw new EntRuntimeException("Invalid GET (1) response status " + responseEntity.getStatusCode() + " - url " + url);
-        }
-        return responseEntity.getBody();
-    }
-    */
-    private String executeCall(String url, TenantConfig config, boolean force) {
+    
+    private <T> T executeGetCall(String url, List<MediaType> acceptableMediaTypes, TenantConfig config, boolean force, Class<T> expectedType) {
         try {
-            HttpEntity<String> entityFirst = this.getHttpEntity(config, force);
+            HttpHeaders headers = this.getBaseHeader(acceptableMediaTypes, config, force);
+            HttpEntity<String> entity = new HttpEntity<>(headers);
             RestTemplate restTemplate = new RestTemplate();
-            ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.GET, entityFirst, String.class);
+            ResponseEntity<T> responseEntity = restTemplate.exchange(url, HttpMethod.GET, entity, expectedType);
             return responseEntity.getBody();
         } catch (HttpClientErrorException e) {
             if (!force && e.getStatusCode().equals(HttpStatus.UNAUTHORIZED)) {
-                return this.executeCall(url, config, true);
+                return this.executeGetCall(url, acceptableMediaTypes, config, true, expectedType);
             } else {
-                throw new EntRuntimeException("Invalid GET (1) response status " + e.getStatusCode() + " - url " + url);
+                throw new EntRuntimeException("Invalid GET, response status " + e.getStatusCode() + " - url " + url);
             }
         }
     }
     
-    private HttpEntity<String> getHttpEntity(TenantConfig config, boolean forceToken) {
+    private HttpHeaders getBaseHeader(List<MediaType> acceptableMediaTypes, TenantConfig config, boolean forceToken) {
         String token = this.extractToken(config, forceToken);
         HttpHeaders headers = new HttpHeaders();
-        headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
         headers.add("Authorization", "Bearer " + token);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        return entity;
-    }
-    
-    @Override
-    public BasicFileAttributeView[] listDirectoryAttributes(String subPath, boolean isProtectedResource) throws EntException {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
-
-    @Override
-    public BasicFileAttributeView[] listFileAttributes(String subPath, boolean isProtectedResource) throws EntException {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        if (null != acceptableMediaTypes) {
+            headers.setAccept(acceptableMediaTypes);
+        }
+        return headers;
     }
 
     @Override
