@@ -78,8 +78,6 @@ public class CdsStorageManager implements IStorageManager {
     private static final String SECTION_PUBLIC = "public";
     private static final String SECTION_PRIVATE = "protected";
     
-    private static final String WRONG_PATH_NAME = "Wrong_path";
-    
     private String cdsPublicUrl;
     private String cdpPrivateUrl;
     private String cdsPath;
@@ -99,37 +97,61 @@ public class CdsStorageManager implements IStorageManager {
     public String getBaseResourceUrl(boolean isProtected) {
         return this.getCdsPublicUrl();
     }
-
+    
+    @Override
+    public void createDirectory(String subPath, boolean isProtectedResource) throws EntException {
+        this.create(subPath, isProtectedResource, null);
+    }
+    
     @Override
     public void saveFile(String subPath, boolean isProtectedResource, InputStream is) throws EntException, IOException {
+        this.create(subPath, isProtectedResource, is);
+    }
+    
+    protected void create(String subPath, boolean isProtectedResource, InputStream is) throws EntException {
         try {
             TenantConfig config = this.getTenantConfig();
             this.validateAndReturnResourcePath(config, subPath, isProtectedResource);
-            InputStreamResource resource = new InputStreamResource(is);
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            String filename = subPath;
-            String path = "";
-            int sepIndex = subPath.lastIndexOf(URL_SEP);
-            if (sepIndex >= 0) {
-                filename = subPath.substring(sepIndex + 1);
-                path = subPath.substring(0, sepIndex);
+            if (null != is) {
+                //added file
+                String filename = subPath;
+                String path = "";
+                int sepIndex = subPath.lastIndexOf(URL_SEP);
+                if (sepIndex >= 0) {
+                    filename = subPath.substring(sepIndex + 1);
+                    path = subPath.substring(0, sepIndex);
+                }
+                InputStreamResource resource = new InputStreamResource(is);
+                body.add("path", path);
+                body.add("protected", isProtectedResource);
+                body.add("filename", filename);
+                body.add("file", resource);
+            } else {
+                body.add("path", subPath);
+                body.add("protected", isProtectedResource);
             }
-            body.add("path", path);
-            body.add("protected", isProtectedResource);
-            body.add("filename", filename);
-            body.add("file", resource);
+            
             String url = String.format("%s/upload/", this.extractInternalCdsBaseUrl(config, true));
             String result = this.executePostCall(url, body, config, false);
-            System.out.println("*********************************");
+            //Map<String, String> map = new ObjectMapper().readValue(result, new TypeReference<HashMap<String, String>>(){});
+            System.out.println("*************CREATE********************");
+            System.out.println((null != is) ? "***FILE***" : "***DIRECTORY***");
             System.out.println(result);
             System.out.println("*********************************");
+            /*
+            if (!"OK".equalsIgnoreCase(map.get("status"))) {
+                throw new EntRuntimeException("Invalid status - Response " + result);
+            }
+            */
         } catch (EntRuntimeException ert) {
             throw ert;
         } catch (Exception e) {
-            logger.error("Error saving file", e);
-            throw new EntException("Error saving file", e);
+            logger.error("Error saving file/directory", e);
+            throw new EntException("Error saving file/directory", e);
         }
     }
+    
     /*
     public Resource getTestFile() throws IOException {
         return new FileSystemResource(new File("/home/eu/Desktop/TestFile.txt"));
@@ -188,11 +210,6 @@ public class CdsStorageManager implements IStorageManager {
     }
 
     @Override
-    public void createDirectory(String subPath, boolean isProtectedResource) throws EntException {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
-
-    @Override
     public void deleteDirectory(String subPath, boolean isProtectedResource) throws EntException {
         this.deleteFile(subPath, isProtectedResource); //same behavior
     }
@@ -240,15 +257,15 @@ public class CdsStorageManager implements IStorageManager {
 
     @Override
     public boolean exists(String subPath, boolean isProtectedResource) throws EntException {
-        String filename = null;
+        String path = "";
+        String filename = subPath;
         int sepIndex = subPath.lastIndexOf(URL_SEP);
         if (sepIndex >= 0) {
+            path = subPath.substring(0, sepIndex);
             filename = subPath.substring(sepIndex + 1);
-        } else {
-            throw new EntException("invalid path " + subPath);
         }
-        String[] filenames = this.listFile(subPath, isProtectedResource);
-        return (null != filenames && filenames.length == 1 && filenames[0].equals(filename));
+        String[] filenames = this.list(path, isProtectedResource);
+        return (null != filenames && Arrays.asList(filenames).contains(filename));
     }
 
     @Override
@@ -301,6 +318,9 @@ public class CdsStorageManager implements IStorageManager {
             String section = this.getSection(isProtectedResource);
             String url = String.format("%s/list/%s/%s", this.extractInternalCdsBaseUrl(config, true), section, subPathFixed);
             String responseString = this.executeGetCall(url, Arrays.asList(MediaType.APPLICATION_JSON), config, false, String.class);
+            if (null == responseString) {
+                return new BasicFileAttributeView[0];
+            }
             CdsFileAttributeView[] cdsFileList = this.objectMapper.readValue(responseString, new TypeReference<CdsFileAttributeView[]>() {});
             List<BasicFileAttributeView> list = Arrays.asList(cdsFileList).stream()
                     .filter(csdf -> (null != file) ? ((file) ? !csdf.getDirectory() : csdf.getDirectory()) : true)
@@ -311,10 +331,6 @@ public class CdsStorageManager implements IStorageManager {
                 bfa.setSize(csdf.getSize());
                 return bfa;
             }).collect(Collectors.toList());
-            if (list.size() == 1 && list.get(0).getName().equalsIgnoreCase(WRONG_PATH_NAME)) {
-                logger.info("Invalid path {} - protected {}", subPath, isProtectedResource);
-                return new BasicFileAttributeView[0];
-            }
             Collections.sort(list);
             return list.stream().toArray(BasicFileAttributeView[]::new);
         } catch (EntRuntimeException ert) {
@@ -333,6 +349,10 @@ public class CdsStorageManager implements IStorageManager {
             ResponseEntity<T> responseEntity = restTemplate.exchange(url, HttpMethod.GET, entity, expectedType);
             return responseEntity.getBody();
         } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().equals(HttpStatus.NOT_FOUND)) {
+                logger.info("File Not found - uri {}", url);
+                return null;
+            }
             if (!force && e.getStatusCode().equals(HttpStatus.UNAUTHORIZED)) {
                 return this.executeGetCall(url, acceptableMediaTypes, config, true, expectedType);
             } else {

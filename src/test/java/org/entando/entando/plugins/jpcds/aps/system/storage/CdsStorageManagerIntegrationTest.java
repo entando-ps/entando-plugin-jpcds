@@ -27,6 +27,7 @@ import java.io.InputStream;
 import org.apache.commons.io.IOUtils;
 import org.entando.entando.aps.system.services.storage.BasicFileAttributeView;
 import org.entando.entando.aps.system.services.storage.IStorageManager;
+import org.entando.entando.ent.exception.EntException;
 import org.entando.entando.ent.exception.EntRuntimeException;
 import org.entando.entando.ent.util.EntLogging.EntLogFactory;
 import org.entando.entando.ent.util.EntLogging.EntLogger;
@@ -60,7 +61,7 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
                     || filename.equals("security.properties"));
         }
     }
-
+    
     @Test
     void testStorageDirectoryList() throws Throwable {
         String[] directoryNames = localStorageManager.listDirectory("", false);
@@ -72,6 +73,7 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
         assertEquals(0, directoryNames.length);
     }
 */
+    
     @Test
     void testListAttributes() throws Throwable {
         BasicFileAttributeView[] fileAttributes = cdsStorageManager.listAttributes("", false);
@@ -198,9 +200,10 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
     @Test
     void testSaveEditDeleteFile_2() throws Throwable {
         String testFilePath = "testfolder_2/architectureUploaded.txt";
-        InputStream stream = cdsStorageManager.getStream(testFilePath, false);
-        Assertions.assertNull(stream);
+        InputStream stream = null;
         try {
+            stream = cdsStorageManager.getStream(testFilePath, false);
+            Assertions.assertNull(stream);
             File file = new File("src/test/resources/document/architecture.txt");
             cdsStorageManager.saveFile(testFilePath, false, new FileInputStream(file));
             stream = cdsStorageManager.getStream(testFilePath, false);
@@ -220,7 +223,7 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
             if (null != stream) {
                 stream.close();
             }
-            cdsStorageManager.deleteDirectory("testfolder/", false);
+            cdsStorageManager.deleteDirectory("testfolder_2/", false);
             InputStream streamBis = cdsStorageManager.getStream(testFilePath, false);
             Assertions.assertNull(streamBis);
         }
@@ -241,25 +244,26 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
         });
         assertThat(exc2.getMessage(), CoreMatchers.startsWith("Path validation failed"));
     }
-    /*
+    
     @Test
     void testCreateDeleteDir() throws EntException {
         String directoryName = "testfolder";
         String subDirectoryName = "subfolder";
-        assertFalse(localStorageManager.exists(directoryName, false));
+        Assertions.assertFalse(this.cdsStorageManager.exists(directoryName, false));
         try {
-            localStorageManager.createDirectory(directoryName + File.separator + subDirectoryName, false);
-            assertTrue(localStorageManager.exists(directoryName, false));
-            String[] listDirectory = localStorageManager.listDirectory(directoryName, false);
+            this.cdsStorageManager.createDirectory(directoryName + File.separator + subDirectoryName, false);
+            assertTrue(this.cdsStorageManager.exists(directoryName, false));
+            String[] listDirectory = this.cdsStorageManager.listDirectory(directoryName, false);
             assertEquals(1, listDirectory.length);
-            listDirectory = localStorageManager.listDirectory(directoryName + File.separator + subDirectoryName, false);
+            listDirectory = this.cdsStorageManager.listDirectory(directoryName + File.separator + subDirectoryName, false);
             assertEquals(0, listDirectory.length);
         } finally {
-            localStorageManager.deleteDirectory(directoryName, false);
-            assertFalse(localStorageManager.exists(directoryName, false));
+            this.cdsStorageManager.deleteDirectory(directoryName, false);
+            Assertions.assertFalse(this.cdsStorageManager.exists(directoryName, false));
         }
     }
-
+    
+    /*
     @Test
     void testCreateDeleteDir_ShouldHandleFailureCases() throws EntException {
         String baseFolder = "non-existent";
