@@ -16,6 +16,7 @@ package org.entando.entando.plugins.jpcds.aps.system.storage;
 import com.agiletec.aps.system.EntThreadLocal;
 import com.agiletec.aps.util.FileTextReader;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -134,16 +135,11 @@ public class CdsStorageManager implements IStorageManager {
             
             String url = String.format("%s/upload/", this.extractInternalCdsBaseUrl(config, true));
             String result = this.executePostCall(url, body, config, false);
-            //Map<String, String> map = new ObjectMapper().readValue(result, new TypeReference<HashMap<String, String>>(){});
-            System.out.println("*************CREATE********************");
-            System.out.println((null != is) ? "***FILE***" : "***DIRECTORY***");
-            System.out.println(result);
-            System.out.println("*********************************");
-            /*
-            if (!"OK".equalsIgnoreCase(map.get("status"))) {
+            ObjectMapper mapper = new ObjectMapper();
+            CdsCreateResponse[] response = mapper.readValue(result, new TypeReference<CdsCreateResponse[]>(){});
+            if (!"OK".equalsIgnoreCase(response[0].getStatus())) {
                 throw new EntRuntimeException("Invalid status - Response " + result);
             }
-            */
         } catch (EntRuntimeException ert) {
             throw ert;
         } catch (Exception e) {
