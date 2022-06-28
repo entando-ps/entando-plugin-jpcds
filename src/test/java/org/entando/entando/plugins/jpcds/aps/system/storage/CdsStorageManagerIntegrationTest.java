@@ -16,13 +16,25 @@ package org.entando.entando.plugins.jpcds.aps.system.storage;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.agiletec.aps.BaseTestCase;
+import com.agiletec.aps.system.EntThreadLocal;
+import com.agiletec.aps.util.FileTextReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import org.apache.commons.io.IOUtils;
 import org.entando.entando.aps.system.services.storage.BasicFileAttributeView;
 import org.entando.entando.aps.system.services.storage.IStorageManager;
+import org.entando.entando.aps.system.services.tenant.ITenantManager;
+import org.entando.entando.ent.exception.EntException;
+import org.entando.entando.ent.exception.EntRuntimeException;
 import org.entando.entando.ent.util.EntLogging.EntLogFactory;
 import org.entando.entando.ent.util.EntLogging.EntLogger;
+import org.hamcrest.CoreMatchers;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -32,12 +44,12 @@ import org.junit.jupiter.api.Test;
 class CdsStorageManagerIntegrationTest extends BaseTestCase {
 
     private static final EntLogger logger = EntLogFactory.getSanitizedLogger(CdsStorageManagerIntegrationTest.class);
-/*
+    
     @Test
     void testInitialize() {
-        assertNotNull(localStorageManager);
+        Assertions.assertNotNull(cdsStorageManager);
     }
-
+/*
     @Test
     void testStorageFileList() throws Throwable {
         String[] filenames = localStorageManager.listFile("", false);
@@ -51,7 +63,7 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
                     || filename.equals("security.properties"));
         }
     }
-
+    
     @Test
     void testStorageDirectoryList() throws Throwable {
         String[] directoryNames = localStorageManager.listDirectory("", false);
@@ -63,10 +75,11 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
         assertEquals(0, directoryNames.length);
     }
 */
+    
     @Test
     void testListAttributes() throws Throwable {
         BasicFileAttributeView[] fileAttributes = cdsStorageManager.listAttributes("", false);
-        boolean containsConf = false;
+        boolean containsCms = false;
         boolean prevDirectory = true;
         String prevName = null;
         for (int i = 0; i < fileAttributes.length; i++) {
@@ -74,8 +87,8 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
             if (!prevDirectory && bfav.isDirectory()) {
                 fail();
             }
-            if (bfav.isDirectory() && bfav.getName().equals("conf")) {
-                containsConf = true;
+            if (bfav.isDirectory() && bfav.getName().equals("cms")) {
+                containsCms = true;
             }
             if ((bfav.isDirectory() == prevDirectory) && null != prevName) {
                 assertTrue(bfav.getName().compareTo(prevName) > 0);
@@ -83,13 +96,20 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
             prevName = bfav.getName();
             prevDirectory = bfav.isDirectory();
         }
-        assertTrue(containsConf);
+        assertTrue(containsCms);
     }
-
+    
     @Test
     void testListAttributes_2() throws Throwable {
-        BasicFileAttributeView[] fileAttributes = cdsStorageManager.listAttributes("conf" + File.separator, false);
-        assertEquals(3, fileAttributes.length);
+        this.executeTestListAttributes_2();
+        EntThreadLocal.set(ITenantManager.THREAD_LOCAL_TENANT_CODE, "tenant");
+        this.executeTestListAttributes_2();
+        EntThreadLocal.remove(ITenantManager.THREAD_LOCAL_TENANT_CODE);
+    }
+    
+    void executeTestListAttributes_2() throws Throwable {
+        BasicFileAttributeView[] fileAttributes = cdsStorageManager.listAttributes("cms" + File.separator, false);
+        assertEquals(2, fileAttributes.length);
         int dirCounter = 0;
         int fileCounter = 0;
         for (int i = 0; i < fileAttributes.length; i++) {
@@ -100,8 +120,24 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
                 fileCounter++;
             }
         }
-        assertEquals(0, dirCounter);
-        assertEquals(3, fileCounter);
+        assertEquals(2, dirCounter);
+        assertEquals(0, fileCounter);
+        
+        fileAttributes = cdsStorageManager.listDirectoryAttributes("cms" + File.separator, false);
+        assertEquals(2, fileAttributes.length);
+        
+        fileAttributes = cdsStorageManager.listFileAttributes("cms" + File.separator, false);
+        assertEquals(0, fileAttributes.length);
+        
+        String[] names = cdsStorageManager.list("cms" + File.separator, false);
+        assertEquals(2, names.length);
+        
+        names = cdsStorageManager.listDirectory("cms" + File.separator, false);
+        assertEquals(2, names.length);
+        
+        names = cdsStorageManager.listFile("cms" + File.separator, false);
+        assertEquals(0, names.length);
+        
     }
 
     @Test
@@ -116,93 +152,127 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
                 cdsStorageManager.listAttributes("conf/security.properties" + File.separator, false);
         assertEquals(0, fileAttributes.length);
     }
-/*
+    
     @Test
     void testGetStream_ShouldBlockPathTraversal() throws Throwable {
         String testFilePath = "../testfolder/test.txt";
-
         try {
-            localStorageManager.getStream(testFilePath, false);
+            cdsStorageManager.getStream(testFilePath, false);
         } catch (EntRuntimeException e) {
             assertThat(e.getMessage(), CoreMatchers.startsWith("Path validation failed"));
         } catch (Throwable t) {
             fail("Shouldn't reach this point");
         }
     }
-
+    
     @Test
     void testSaveEditDeleteFile() throws Throwable {
         String testFilePath = "testfolder/test.txt";
-        InputStream stream = localStorageManager.getStream(testFilePath, false);
-        assertNull(stream);
+        InputStream stream = cdsStorageManager.getStream(testFilePath, false);
+        Assertions.assertNull(stream);
         try {
             String content = "Content of new text file";
-            localStorageManager.saveFile(testFilePath, false, new ByteArrayInputStream(content.getBytes()));
-            stream = localStorageManager.getStream(testFilePath, false);
-            assertNotNull(stream);
+            cdsStorageManager.saveFile(testFilePath, false, new ByteArrayInputStream(content.getBytes()));
+            Assertions.assertTrue(cdsStorageManager.exists(testFilePath, false));
+            stream = cdsStorageManager.getStream(testFilePath, false);
+            Assertions.assertNotNull(stream);
             String extractedString = IOUtils.toString(stream, "UTF-8");
             stream.close();
-            assertEquals(content, extractedString);
+            Assertions.assertEquals(content, extractedString);
             String newContent = "This is the new content of text file";
-            localStorageManager.editFile(testFilePath, false, new ByteArrayInputStream(newContent.getBytes()));
-            stream = localStorageManager.getStream(testFilePath, false);
+            cdsStorageManager.editFile(testFilePath, false, new ByteArrayInputStream(newContent.getBytes()));
+            stream = cdsStorageManager.getStream(testFilePath, false);
             String extractedNewString = IOUtils.toString(stream, "UTF-8");
             stream.close();
-            assertEquals(newContent, extractedNewString);
-            String readfileAfterWriteBackup = localStorageManager.readFile(testFilePath, false);
-            assertEquals(extractedNewString, readfileAfterWriteBackup);
-            boolean deleted = localStorageManager.deleteFile(testFilePath, false);
+            Assertions.assertEquals(newContent, extractedNewString);
+            String readfileAfterWriteBackup = cdsStorageManager.readFile(testFilePath, false);
+            Assertions.assertEquals(extractedNewString.trim(), readfileAfterWriteBackup.trim());
+            boolean deleted = cdsStorageManager.deleteFile(testFilePath, false);
             assertTrue(deleted);
-            stream = localStorageManager.getStream(testFilePath, false);
-            assertNull(stream);
+            Assertions.assertFalse(cdsStorageManager.exists(testFilePath, false));
+            stream = cdsStorageManager.getStream(testFilePath, false);
+            Assertions.assertNull(stream);
         } catch (Throwable t) {
             throw t;
         } finally {
             if (null != stream) {
                 stream.close();
             }
-            localStorageManager.deleteDirectory("testfolder/", false);
-            InputStream streamBis = localStorageManager.getStream(testFilePath, false);
-            assertNull(streamBis);
+            cdsStorageManager.deleteDirectory("testfolder/", false);
+            InputStream streamBis = cdsStorageManager.getStream(testFilePath, false);
+            Assertions.assertNull(streamBis);
         }
         // file not found case
-        assertFalse(
-                localStorageManager.deleteFile("non-existent", false)
-        );
+        Assertions.assertFalse(cdsStorageManager.deleteFile("non-existent", false));
     }
-
+    
+    @Test
+    void testSaveEditDeleteFile_2() throws Throwable {
+        String testFilePath = "testfolder_2/architectureUploaded.txt";
+        InputStream stream = null;
+        try {
+            stream = cdsStorageManager.getStream(testFilePath, false);
+            Assertions.assertNull(stream);
+            File file = new File("src/test/resources/document/architecture.txt");
+            cdsStorageManager.saveFile(testFilePath, false, new FileInputStream(file));
+            stream = cdsStorageManager.getStream(testFilePath, false);
+            Assertions.assertNotNull(stream);
+            
+            String originalText = FileTextReader.getText("src/test/resources/document/architecture.txt");
+            String extractedText = FileTextReader.getText(stream);
+            Assertions.assertEquals(originalText, extractedText);
+            
+            boolean deleted = cdsStorageManager.deleteFile(testFilePath, false);
+            assertTrue(deleted);
+            stream = cdsStorageManager.getStream(testFilePath, false);
+            Assertions.assertNull(stream);
+        } catch (Throwable t) {
+            throw t;
+        } finally {
+            if (null != stream) {
+                stream.close();
+            }
+            cdsStorageManager.deleteDirectory("testfolder_2/", false);
+            InputStream streamBis = cdsStorageManager.getStream(testFilePath, false);
+            Assertions.assertNull(streamBis);
+        }
+        // file not found case
+        Assertions.assertFalse(cdsStorageManager.deleteFile("non-existent", false));
+    }
+    
     @Test
     void testCreateDeleteFile_ShouldBlockPathTraversals() throws Throwable {
         String testFilePath = "../../testfolder/test.txt";
         String content = "Content of new text file";
         EntRuntimeException exc1 = Assertions.assertThrows(EntRuntimeException.class, () -> {
-            this.localStorageManager.saveFile(testFilePath, false, new ByteArrayInputStream(content.getBytes()));
+            this.cdsStorageManager.saveFile(testFilePath, false, new ByteArrayInputStream(content.getBytes()));
         });
         assertThat(exc1.getMessage(), CoreMatchers.startsWith("Path validation failed"));
         EntRuntimeException exc2 = Assertions.assertThrows(EntRuntimeException.class, () -> {
-            this.localStorageManager.deleteFile(testFilePath, false);
+            this.cdsStorageManager.deleteFile(testFilePath, false);
         });
         assertThat(exc2.getMessage(), CoreMatchers.startsWith("Path validation failed"));
     }
-
+    
     @Test
     void testCreateDeleteDir() throws EntException {
         String directoryName = "testfolder";
         String subDirectoryName = "subfolder";
-        assertFalse(localStorageManager.exists(directoryName, false));
+        Assertions.assertFalse(this.cdsStorageManager.exists(directoryName, false));
         try {
-            localStorageManager.createDirectory(directoryName + File.separator + subDirectoryName, false);
-            assertTrue(localStorageManager.exists(directoryName, false));
-            String[] listDirectory = localStorageManager.listDirectory(directoryName, false);
+            this.cdsStorageManager.createDirectory(directoryName + File.separator + subDirectoryName, false);
+            assertTrue(this.cdsStorageManager.exists(directoryName, false));
+            String[] listDirectory = this.cdsStorageManager.listDirectory(directoryName, false);
             assertEquals(1, listDirectory.length);
-            listDirectory = localStorageManager.listDirectory(directoryName + File.separator + subDirectoryName, false);
+            listDirectory = this.cdsStorageManager.listDirectory(directoryName + File.separator + subDirectoryName, false);
             assertEquals(0, listDirectory.length);
         } finally {
-            localStorageManager.deleteDirectory(directoryName, false);
-            assertFalse(localStorageManager.exists(directoryName, false));
+            this.cdsStorageManager.deleteDirectory(directoryName, false);
+            Assertions.assertFalse(this.cdsStorageManager.exists(directoryName, false));
         }
     }
-
+    
+    /*
     @Test
     void testCreateDeleteDir_ShouldHandleFailureCases() throws EntException {
         String baseFolder = "non-existent";

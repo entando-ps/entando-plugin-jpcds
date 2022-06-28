@@ -112,17 +112,19 @@
     "dbUsername": "db_user_1",
     "dbPassword": "db_password_1",
     "cdsPublicUrl": "https://cds.sme.entando.org",
-    "cdpPrivateUrl": "https://cds.sme.entando.org",
+    "cdsPrivateUrl": "https://cds.sme.entando.org",
     "cdsPath": "api/v1"
 }]
 ]]>
                         </ENTANDO_TENANTS>
                         <CDS_PUBLIC_URL>https://cds.sme.entando.org</CDS_PUBLIC_URL>
                         <CDS_PRIVATE_URL>https://cds.sme.entando.org</CDS_PRIVATE_URL>
+                        <CDS_PATH>/api/v1</CDS_PATH>
                         <KEYCLOAK_AUTH_URL>https://mt-kc-multitenancy-dev.sme.entando.org/auth</KEYCLOAK_AUTH_URL>
                         <KEYCLOAK_REALM>entando</KEYCLOAK_REALM>
                         <KEYCLOAK_CLIENT_ID>mt-server</KEYCLOAK_CLIENT_ID>
                         <KEYCLOAK_CLIENT_SECRET>395c67e4-e95f-4609-88b3-8da8e830f654</KEYCLOAK_CLIENT_SECRET>
+                        <LOG_LEVEL>INFO</LOG_LEVEL>
                     </environmentVariables>
                 </configuration>
                 
