@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.agiletec.aps.BaseTestCase;
+import com.agiletec.aps.system.EntThreadLocal;
 import com.agiletec.aps.util.FileTextReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -27,6 +28,7 @@ import java.io.InputStream;
 import org.apache.commons.io.IOUtils;
 import org.entando.entando.aps.system.services.storage.BasicFileAttributeView;
 import org.entando.entando.aps.system.services.storage.IStorageManager;
+import org.entando.entando.aps.system.services.tenant.ITenantManager;
 import org.entando.entando.ent.exception.EntException;
 import org.entando.entando.ent.exception.EntRuntimeException;
 import org.entando.entando.ent.util.EntLogging.EntLogFactory;
@@ -96,9 +98,16 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
         }
         assertTrue(containsCms);
     }
-
+    
     @Test
     void testListAttributes_2() throws Throwable {
+        this.executeTestListAttributes_2();
+        EntThreadLocal.set(ITenantManager.THREAD_LOCAL_TENANT_CODE, "tenant");
+        this.executeTestListAttributes_2();
+        EntThreadLocal.remove(ITenantManager.THREAD_LOCAL_TENANT_CODE);
+    }
+    
+    void executeTestListAttributes_2() throws Throwable {
         BasicFileAttributeView[] fileAttributes = cdsStorageManager.listAttributes("cms" + File.separator, false);
         assertEquals(2, fileAttributes.length);
         int dirCounter = 0;
