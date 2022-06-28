@@ -123,6 +123,7 @@
                         <KEYCLOAK_REALM>entando</KEYCLOAK_REALM>
                         <KEYCLOAK_CLIENT_ID>mt-server</KEYCLOAK_CLIENT_ID>
                         <KEYCLOAK_CLIENT_SECRET>395c67e4-e95f-4609-88b3-8da8e830f654</KEYCLOAK_CLIENT_SECRET>
+                        <LOG_LEVEL>INFO</LOG_LEVEL>
                     </environmentVariables>
                 </configuration>
                 

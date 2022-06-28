@@ -14,9 +14,11 @@
 package org.entando.entando.plugins.jpcds.aps.system.storage;
 
 import com.agiletec.aps.system.EntThreadLocal;
+import com.agiletec.aps.util.FileTextReader;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -25,6 +27,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -32,6 +36,7 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.entando.entando.aps.system.services.storage.BasicFileAttributeView;
 import org.entando.entando.aps.system.services.storage.IStorageManager;
+import org.entando.entando.aps.system.services.storage.StorageManagerUtil;
 import org.entando.entando.aps.system.services.tenant.ITenantManager;
 import org.entando.entando.aps.system.services.tenant.TenantConfig;
 import org.entando.entando.ent.exception.EntException;
@@ -99,22 +104,37 @@ public class CdsStorageManager implements IStorageManager {
     public void saveFile(String subPath, boolean isProtectedResource, InputStream is) throws EntException, IOException {
         try {
             TenantConfig config = this.getTenantConfig();
+            this.validateAndReturnResourcePath(config, subPath, isProtectedResource);
             InputStreamResource resource = new InputStreamResource(is);
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("file", resource);
+            String filename = subPath;
+            String path = "";
+            int sepIndex = subPath.lastIndexOf(URL_SEP);
+            if (sepIndex >= 0) {
+                filename = subPath.substring(sepIndex + 1);
+                path = subPath.substring(0, sepIndex);
+            }
+            body.add("path", path);
             body.add("protected", isProtectedResource);
-            body.add("path", subPath);
-            String url = String.format("%s/upload/", this.extractCdsBaseUrl(config, true));
+            body.add("filename", filename);
+            body.add("file", resource);
+            String url = String.format("%s/upload/", this.extractInternalCdsBaseUrl(config, true));
             String result = this.executePostCall(url, body, config, false);
             System.out.println("*********************************");
             System.out.println(result);
             System.out.println("*********************************");
+        } catch (EntRuntimeException ert) {
+            throw ert;
         } catch (Exception e) {
             logger.error("Error saving file", e);
             throw new EntException("Error saving file", e);
         }
     }
-    
+    /*
+    public Resource getTestFile() throws IOException {
+        return new FileSystemResource(new File("/home/eu/Desktop/TestFile.txt"));
+    }
+    */
     private String executePostCall(String url, MultiValueMap<String, Object> body, TenantConfig config, boolean force) {
         try {
             HttpHeaders headers = this.getBaseHeader(Arrays.asList(MediaType.ALL), config, force);
@@ -136,15 +156,15 @@ public class CdsStorageManager implements IStorageManager {
     public boolean deleteFile(String subPath, boolean isProtectedResource) throws EntException {
         try {
             TenantConfig config = this.getTenantConfig();
+            this.validateAndReturnResourcePath(config, subPath, isProtectedResource);
             String section = this.getSection(isProtectedResource);
             String subPathFixed = (!StringUtils.isBlank(subPath)) ? (subPath.trim().startsWith(URL_SEP) ? subPath.trim().substring(1) : subPath) : "";
-            String url = String.format("%s/delete/%s/%s", this.extractCdsBaseUrl(config, true), section, subPathFixed);
-
+            String url = String.format("%s/delete/%s/%s", this.extractInternalCdsBaseUrl(config, true), section, subPathFixed);
             String result = this.executeDeleteCall(url, config, false);
-            System.out.println("*********************************");
-            System.out.println(result);
-            System.out.println("*********************************");
-            return true;
+            Map<String, String> map = new ObjectMapper().readValue(result, new TypeReference<HashMap<String, String>>(){});
+            return ("OK".equalsIgnoreCase(map.get("status")));
+        } catch (EntRuntimeException ert) {
+            throw ert;
         } catch (Exception e) {
             logger.error("Error deleting file", e);
             throw new EntException("Error deleting file", e);
@@ -174,15 +194,15 @@ public class CdsStorageManager implements IStorageManager {
 
     @Override
     public void deleteDirectory(String subPath, boolean isProtectedResource) throws EntException {
-        //throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        this.deleteFile(subPath, isProtectedResource); //same behavior
     }
 
     @Override
     public InputStream getStream(String subPath, boolean isProtectedResource) throws EntException {
         String url = null;
         try {
-            byte[] bytes = null;
             TenantConfig config = this.getTenantConfig();
+            this.validateAndReturnResourcePath(config, subPath, isProtectedResource);
             String section = this.getSection(isProtectedResource);
             String baseUrl = (null != config) ? 
                 ((isProtectedResource) ? config.getProperty(CDS_PRIVATE_URL_TENANT_PARAM) : config.getProperty(CDS_PUBLIC_URL_TENANT_PARAM)) :
@@ -190,6 +210,7 @@ public class CdsStorageManager implements IStorageManager {
             baseUrl = (baseUrl.endsWith(URL_SEP)) ? baseUrl.substring(0, baseUrl.length()-2) : baseUrl;
             String subPathFixed = (!StringUtils.isBlank(subPath)) ? (subPath.trim().startsWith(URL_SEP) ? subPath.trim().substring(1) : subPath) : "";
             url = baseUrl + URL_SEP + section + URL_SEP + subPathFixed;
+            byte[] bytes = null;
             if (isProtectedResource) {
                 bytes = this.executeGetCall(url, null, config, false, byte[].class);
             } else {
@@ -197,6 +218,8 @@ public class CdsStorageManager implements IStorageManager {
                 bytes = restTemplate.getForObject(url, byte[].class);
             }
             return new ByteArrayInputStream(bytes);
+        } catch (EntRuntimeException ert) {
+            throw ert;
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode().equals(HttpStatus.NOT_FOUND)) {
                 logger.info("File Not found - uri {}", url);
@@ -217,7 +240,15 @@ public class CdsStorageManager implements IStorageManager {
 
     @Override
     public boolean exists(String subPath, boolean isProtectedResource) throws EntException {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        String filename = null;
+        int sepIndex = subPath.lastIndexOf(URL_SEP);
+        if (sepIndex >= 0) {
+            filename = subPath.substring(sepIndex + 1);
+        } else {
+            throw new EntException("invalid path " + subPath);
+        }
+        String[] filenames = this.listFile(subPath, isProtectedResource);
+        return (null != filenames && filenames.length == 1 && filenames[0].equals(filename));
     }
 
     @Override
@@ -265,9 +296,10 @@ public class CdsStorageManager implements IStorageManager {
     protected BasicFileAttributeView[] listAttributes(String subPath, boolean isProtectedResource, Boolean file) throws EntException {
         try {
             TenantConfig config = this.getTenantConfig();
+            this.validateAndReturnResourcePath(config, subPath, isProtectedResource);
             String subPathFixed = (!StringUtils.isBlank(subPath)) ? (subPath.trim().startsWith(URL_SEP) ? subPath.trim().substring(1) : subPath) : "";
             String section = this.getSection(isProtectedResource);
-            String url = String.format("%s/list/%s/%s", this.extractCdsBaseUrl(config, true), section, subPathFixed);
+            String url = String.format("%s/list/%s/%s", this.extractInternalCdsBaseUrl(config, true), section, subPathFixed);
             String responseString = this.executeGetCall(url, Arrays.asList(MediaType.APPLICATION_JSON), config, false, String.class);
             CdsFileAttributeView[] cdsFileList = this.objectMapper.readValue(responseString, new TypeReference<CdsFileAttributeView[]>() {});
             List<BasicFileAttributeView> list = Arrays.asList(cdsFileList).stream()
@@ -285,6 +317,8 @@ public class CdsStorageManager implements IStorageManager {
             }
             Collections.sort(list);
             return list.stream().toArray(BasicFileAttributeView[]::new);
+        } catch (EntRuntimeException ert) {
+            throw ert;
         } catch (Exception e) {
             logger.error("Error on list attributes", e);
             throw new EntException("Error on list attributes", e);
@@ -319,22 +353,33 @@ public class CdsStorageManager implements IStorageManager {
 
     @Override
     public String readFile(String subPath, boolean isProtectedResource) throws EntException {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        try {
+            InputStream stream = this.getStream(subPath, isProtectedResource);
+            return FileTextReader.getText(stream);
+        } catch (EntRuntimeException ert) {
+            throw ert;
+        } catch (IOException ex) {
+            logger.error("Error extracting text", ex);
+            throw new EntException("Error extracting text", ex);
+        }
     }
 
     @Override
     public void editFile(String subPath, boolean isProtectedResource, InputStream is) throws EntException {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        try {
+            this.saveFile(subPath, isProtectedResource, is);
+        } catch (EntRuntimeException ert) {
+            throw ert;
+        } catch (IOException ex) {
+            logger.error("Error editing text", ex);
+            throw new EntException("Error editing text", ex);
+        }
     }
 
     @Override
     public String createFullPath(String subPath, boolean isProtectedResource) throws EntException {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
-
-    @Override
-    public <T> T withValidResourcePath(String resourceRelativePath, boolean isProtectedResource, BiFunction<String, String, T> bip) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        TenantConfig config = this.getTenantConfig();
+        return this.validateAndReturnResourcePath(config, subPath, isProtectedResource);
     }
     
     private TenantConfig getTenantConfig() {
@@ -346,7 +391,7 @@ public class CdsStorageManager implements IStorageManager {
         return config;
     }
     
-    private String extractCdsBaseUrl(TenantConfig config, boolean privatePath) {
+    private String extractInternalCdsBaseUrl(TenantConfig config, boolean privatePath) {
         String baseUrl = (null != config) ? 
                 ((privatePath) ? config.getProperty(CDS_PRIVATE_URL_TENANT_PARAM) : config.getProperty(CDS_PUBLIC_URL_TENANT_PARAM)) :
                 ((privatePath) ? this.getCdpPrivateUrl() : this.getCdsPublicUrl());
@@ -367,7 +412,7 @@ public class CdsStorageManager implements IStorageManager {
             if (!force) {
                 token = this.tenantsToken.get(config.getTenantCode());
             }
-            if (null == token) {
+            if (StringUtils.isBlank(token)) {
                 token = this.extractToken(config.getKcAuthUrl(), config.getKcRealm(), config.getKcClientId(), config.getKcClientSecret());
                 this.tenantsToken.put(config.getTenantCode(), token);
             }
@@ -375,7 +420,7 @@ public class CdsStorageManager implements IStorageManager {
             if (!force) {
                 token = this.tenantsToken.get(PRIMARY_CODE);
             }
-            if (null == token) {
+            if (StringUtils.isBlank(token)) {
                 token = this.extractToken(this.getKcAuthUrl(), this.getKcRealm(), this.getKcClientId(), this.getKcClientSecret());
                 this.tenantsToken.put(PRIMARY_CODE, token);
             }
@@ -404,6 +449,38 @@ public class CdsStorageManager implements IStorageManager {
         }
         return responseEntity.getBody().get(OAuth2AccessToken.ACCESS_TOKEN).toString();
     }
+    
+    protected String validateAndReturnResourcePath(TenantConfig config, String resourceRelativePath, boolean privatePath) throws EntRuntimeException, EntException {
+        try {
+            resourceRelativePath = (resourceRelativePath == null) ? "" : resourceRelativePath;
+            String basePath = (null != config)
+                    ? ((privatePath) ? config.getProperty(CDS_PRIVATE_URL_TENANT_PARAM) : config.getProperty(CDS_PUBLIC_URL_TENANT_PARAM))
+                    : ((privatePath) ? this.getCdpPrivateUrl() : this.getCdsPublicUrl());
+            String fullPath = this.createPath(basePath, resourceRelativePath);
+            if (!StorageManagerUtil.doesPathContainsPath(basePath, fullPath, true)) {
+                throw mkPathValidationErr(basePath, fullPath);
+            }
+            return fullPath;
+        } catch (EntRuntimeException ert) {
+            throw ert;
+        } catch (Exception e) {
+            logger.error("Error validating path", e);
+            throw new EntException("Error validating path", e);
+        }
+    }
+
+	private String createPath(String basePath, String subPath) {
+		subPath = (null == subPath) ? "" : subPath;
+        basePath = (basePath.endsWith(URL_SEP)) ? basePath.substring(0, basePath.length() - URL_SEP.length() - 1) : basePath;
+        subPath = (subPath.startsWith(URL_SEP)) ? subPath.substring(URL_SEP.length()) : subPath;
+        return basePath + URL_SEP + subPath;
+	}
+
+	private EntRuntimeException mkPathValidationErr(String diskRoot, String fullPath) {
+		return new EntRuntimeException(
+				String.format("Path validation failed: \"%s\" not in \"%s\"", fullPath, diskRoot)
+		);
+	}
 
     public String getCdsPublicUrl() {
         return cdsPublicUrl;
