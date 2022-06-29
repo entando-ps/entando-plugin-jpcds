@@ -117,6 +117,7 @@
 }]
 ]]>
                         </ENTANDO_TENANTS>
+                        <CDS_ENABLED>true</CDS_ENABLED>
                         <CDS_PUBLIC_URL>https://cds.sme.entando.org</CDS_PUBLIC_URL>
                         <CDS_PRIVATE_URL>https://cds.sme.entando.org</CDS_PRIVATE_URL>
                         <CDS_PATH>/api/v1</CDS_PATH>

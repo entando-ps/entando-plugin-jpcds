@@ -13,6 +13,11 @@
 			http://www.springframework.org/schema/cache http://www.springframework.org/schema/cache/spring-cache.xsd">
     
     <bean id="StorageManager" class="org.entando.entando.plugins.jpcds.aps.system.storage.CdsStorageManager">
+        <property name="baseURL" ><value>${resourceRootURL}</value></property>
+        <property name="baseDiskRoot" ><value>${resourceDiskRootFolder}</value></property>
+        <property name="protectedBaseDiskRoot" ><value>${protectedResourceDiskRootFolder}</value></property>
+        <property name="protectedBaseURL" ><value>${protectedResourceRootURL}</value></property>
+        <property name="enabled" value="${cds.enabled:false}" />
         <property name="cdsPublicUrl" value="${cds.public.url:https://cds.sme.entando.org}" />
         <property name="cdpPrivateUrl" value="${cds.private.url:https://cds.sme.entando.org}" />
         <property name="cdsPath" value="${cds.path:/api/v1}" />
