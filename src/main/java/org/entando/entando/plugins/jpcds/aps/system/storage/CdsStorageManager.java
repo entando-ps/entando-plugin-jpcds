@@ -236,15 +236,7 @@ public class CdsStorageManager extends LocalStorageManager implements IStorageMa
             TenantConfig config = this.getTenantConfig();
             this.validateAndReturnResourcePath(config, subPath, isProtectedResource);
             String section = this.getInternalSection(isProtectedResource);
-            
-            /*
-            String baseUrl = (null != config) ? 
-                ((isProtectedResource) ? config.getProperty(CDS_PRIVATE_URL_TENANT_PARAM) : config.getProperty(CDS_PUBLIC_URL_TENANT_PARAM)) :
-                ((isProtectedResource) ? this.getCdpPrivateUrl() : this.getCdsPublicUrl());
-            baseUrl = (baseUrl.endsWith(URL_SEP)) ? baseUrl.substring(0, baseUrl.length()-2) : baseUrl;
-            */
             String baseUrl = this.getCheckedBaseUrl(config, isProtectedResource);
-            
             String subPathFixed = (!StringUtils.isBlank(subPath)) ? (subPath.trim().startsWith(URL_SEP) ? subPath.trim().substring(1) : subPath) : "";
             url = baseUrl + URL_SEP + section + URL_SEP + subPathFixed;
             byte[] bytes = null;
@@ -397,6 +389,7 @@ public class CdsStorageManager extends LocalStorageManager implements IStorageMa
                 BasicFileAttributeView bfa = new BasicFileAttributeView();
                 bfa.setName(csdf.getName());
                 bfa.setDirectory(csdf.getDirectory());
+                bfa.setLastModifiedTime(csdf.getDate());
                 bfa.setSize(csdf.getSize());
                 return bfa;
             }).collect(Collectors.toList());
@@ -539,12 +532,6 @@ public class CdsStorageManager extends LocalStorageManager implements IStorageMa
     }
     
     private String extractInternalCdsBaseUrl(TenantConfig config, boolean privateUrl) {
-        /*
-        String baseUrl = (null != config) ? 
-                ((privateUrl) ? config.getProperty(CDS_PRIVATE_URL_TENANT_PARAM) : config.getProperty(CDS_PUBLIC_URL_TENANT_PARAM)) :
-                ((privateUrl) ? this.getCdpPrivateUrl() : this.getCdsPublicUrl());
-        baseUrl = (baseUrl.endsWith(URL_SEP)) ? baseUrl.substring(0, baseUrl.length()-2) : baseUrl;
-        */
         String baseUrl = this.getCheckedBaseUrl(config, privateUrl);
         String path = (null != config) ? config.getProperty(CDS_PATH_TENANT_PARAM) : this.getCdsPath();
         path = (path.startsWith(URL_SEP)) ? path : URL_SEP + path;

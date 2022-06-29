@@ -14,12 +14,16 @@
 package org.entando.entando.plugins.jpcds.aps.system.storage;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.Map;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * @author E.Santoboni
  */
 public class CdsFileAttributeView implements Serializable {
+    
+    public static final String LONG_TIME_PARAM_NAME = "secs_since_epoch";
     
     private String name;
 	private Map<String,String> last_modified_time;
@@ -41,6 +45,14 @@ public class CdsFileAttributeView implements Serializable {
 
     public void setLast_modified_time(Map<String, String> last_modified_time) {
         this.last_modified_time = last_modified_time;
+    }
+    
+    public Date getDate() {
+        String timeString = this.getLast_modified_time().get(LONG_TIME_PARAM_NAME);
+        if (!StringUtils.isBlank(timeString)) {
+            return new Date(Long.valueOf(timeString));
+        }
+        return null;
     }
 
     public Long getSize() {
