@@ -272,6 +272,23 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
         }
     }
     
+    @Test
+    public void testExists() throws Exception {
+        String folder = "jpversioning/trashedresources";
+        Assertions.assertFalse(this.cdsStorageManager.exists(folder, false));
+    }
+    
+    @Test
+    void testGetResourceUrl() throws Throwable {
+        String expected = "https://cds.sme.entando.org/public/";
+        Assertions.assertEquals(expected, this.cdsStorageManager.getBaseResourceUrl(true));
+        Assertions.assertEquals(expected, this.cdsStorageManager.getBaseResourceUrl(false));
+        EntThreadLocal.set(ITenantManager.THREAD_LOCAL_TENANT_CODE, "tenant");
+        Assertions.assertEquals(expected, this.cdsStorageManager.getBaseResourceUrl(true));
+        Assertions.assertEquals(expected, this.cdsStorageManager.getBaseResourceUrl(false));
+        EntThreadLocal.remove(ITenantManager.THREAD_LOCAL_TENANT_CODE);
+    }
+    
     /*
     @Test
     void testCreateDeleteDir_ShouldHandleFailureCases() throws EntException {

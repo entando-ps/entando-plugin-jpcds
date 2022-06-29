@@ -111,8 +111,8 @@
     "dbUrl": "jdbc:postgresql://testDbServer:5432/tenantDb2",
     "dbUsername": "db_user_1",
     "dbPassword": "db_password_1",
-    "cdsPublicUrl": "https://cds.sme.entando.org",
-    "cdsPrivateUrl": "https://cds.sme.entando.org",
+    "cdsPublicUrl": "https://cds.sme.entando.org/",
+    "cdsPrivateUrl": "https://cds.sme.entando.org/",
     "cdsPath": "api/v1"
 }]
 ]]>

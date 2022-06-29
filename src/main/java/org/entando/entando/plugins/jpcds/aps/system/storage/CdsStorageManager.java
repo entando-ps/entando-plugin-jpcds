@@ -96,7 +96,8 @@ public class CdsStorageManager extends LocalStorageManager implements IStorageMa
         if (!this.isEnabled()) {
             return super.getBaseResourceUrl(isProtected);
         }
-        return this.getCdsPublicUrl();
+        TenantConfig config = this.getTenantConfig();
+        return this.getCheckedBaseUrl(config, false) + URL_SEP + SECTION_PUBLIC + URL_SEP;
     }
     
     @Override
@@ -235,10 +236,15 @@ public class CdsStorageManager extends LocalStorageManager implements IStorageMa
             TenantConfig config = this.getTenantConfig();
             this.validateAndReturnResourcePath(config, subPath, isProtectedResource);
             String section = this.getInternalSection(isProtectedResource);
+            
+            /*
             String baseUrl = (null != config) ? 
                 ((isProtectedResource) ? config.getProperty(CDS_PRIVATE_URL_TENANT_PARAM) : config.getProperty(CDS_PUBLIC_URL_TENANT_PARAM)) :
                 ((isProtectedResource) ? this.getCdpPrivateUrl() : this.getCdsPublicUrl());
             baseUrl = (baseUrl.endsWith(URL_SEP)) ? baseUrl.substring(0, baseUrl.length()-2) : baseUrl;
+            */
+            String baseUrl = this.getCheckedBaseUrl(config, isProtectedResource);
+            
             String subPathFixed = (!StringUtils.isBlank(subPath)) ? (subPath.trim().startsWith(URL_SEP) ? subPath.trim().substring(1) : subPath) : "";
             url = baseUrl + URL_SEP + section + URL_SEP + subPathFixed;
             byte[] bytes = null;
@@ -533,21 +539,22 @@ public class CdsStorageManager extends LocalStorageManager implements IStorageMa
     }
     
     private String extractInternalCdsBaseUrl(TenantConfig config, boolean privateUrl) {
+        /*
         String baseUrl = (null != config) ? 
                 ((privateUrl) ? config.getProperty(CDS_PRIVATE_URL_TENANT_PARAM) : config.getProperty(CDS_PUBLIC_URL_TENANT_PARAM)) :
                 ((privateUrl) ? this.getCdpPrivateUrl() : this.getCdsPublicUrl());
         baseUrl = (baseUrl.endsWith(URL_SEP)) ? baseUrl.substring(0, baseUrl.length()-2) : baseUrl;
+        */
+        String baseUrl = this.getCheckedBaseUrl(config, privateUrl);
         String path = (null != config) ? config.getProperty(CDS_PATH_TENANT_PARAM) : this.getCdsPath();
         path = (path.startsWith(URL_SEP)) ? path : URL_SEP + path;
         String cdsBaseUrl = baseUrl + path;
         return (cdsBaseUrl.endsWith(URL_SEP)) ? cdsBaseUrl.substring(0, cdsBaseUrl.length() - 2) : cdsBaseUrl;
     }
     
-    protected String validateAndReturnResourcePath(TenantConfig config, String resourceRelativePath, boolean privateBaseUrl) {
+    protected String validateAndReturnResourcePath(TenantConfig config, String resourceRelativePath, boolean privateUrl) {
         try {
-            String baseUrl = (null != config)
-                    ? ((privateBaseUrl) ? config.getProperty(CDS_PRIVATE_URL_TENANT_PARAM) : config.getProperty(CDS_PUBLIC_URL_TENANT_PARAM))
-                    : ((privateBaseUrl) ? this.getCdpPrivateUrl() : this.getCdsPublicUrl());
+            String baseUrl = this.getCheckedBaseUrl(config, privateUrl);
             String fullPath = this.createPath(baseUrl, resourceRelativePath);
             if (!StorageManagerUtil.doesPathContainsPath(baseUrl, fullPath, true)) {
                 throw mkPathValidationErr(baseUrl, fullPath);
@@ -559,6 +566,14 @@ public class CdsStorageManager extends LocalStorageManager implements IStorageMa
             logger.error("Error validating path", e);
             throw new EntRuntimeException("Error validating path", e);
         }
+    }
+    
+    private String getCheckedBaseUrl(TenantConfig config, boolean privateUrl) {
+        String baseUrl = (null != config)
+                ? ((privateUrl) ? config.getProperty(CDS_PRIVATE_URL_TENANT_PARAM) : config.getProperty(CDS_PUBLIC_URL_TENANT_PARAM))
+                : ((privateUrl) ? this.getCdpPrivateUrl() : this.getCdsPublicUrl());
+        baseUrl = (baseUrl.endsWith(URL_SEP)) ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        return baseUrl;
     }
 
 	private String createPath(String basePath, String subPath) {
