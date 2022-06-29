@@ -157,11 +157,6 @@ public class CdsStorageManager extends LocalStorageManager implements IStorageMa
         }
     }
     
-    /*
-    public Resource getTestFile() throws IOException {
-        return new FileSystemResource(new File("/home/eu/Desktop/TestFile.txt"));
-    }
-    */
     private String executePostCall(String url, MultiValueMap<String, Object> body, TenantConfig config, boolean force) {
         try {
             HttpHeaders headers = this.getBaseHeader(Arrays.asList(MediaType.ALL), config, force);
@@ -236,7 +231,9 @@ public class CdsStorageManager extends LocalStorageManager implements IStorageMa
             TenantConfig config = this.getTenantConfig();
             this.validateAndReturnResourcePath(config, subPath, isProtectedResource);
             String section = this.getInternalSection(isProtectedResource);
-            String baseUrl = this.getCheckedBaseUrl(config, isProtectedResource);
+            String baseUrl = (isProtectedResource) ? 
+                    this.extractInternalCdsBaseUrl(config, isProtectedResource) : 
+                    this.getCheckedBaseUrl(config, isProtectedResource);
             String subPathFixed = (!StringUtils.isBlank(subPath)) ? (subPath.trim().startsWith(URL_SEP) ? subPath.trim().substring(1) : subPath) : "";
             url = baseUrl + URL_SEP + section + URL_SEP + subPathFixed;
             byte[] bytes = null;
@@ -246,7 +243,7 @@ public class CdsStorageManager extends LocalStorageManager implements IStorageMa
                 RestTemplate restTemplate = new RestTemplate();
                 bytes = restTemplate.getForObject(url, byte[].class);
             }
-            return new ByteArrayInputStream(bytes);
+            return (null != bytes) ? new ByteArrayInputStream(bytes) : null;
         } catch (EntRuntimeException ert) {
             throw ert;
         } catch (HttpClientErrorException e) {

@@ -167,30 +167,36 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
     
     @Test
     void testSaveEditDeleteFile() throws Throwable {
+        this.executeTestSaveEditDeleteFile(false);
+        this.executeTestSaveEditDeleteFile(true);
+    }
+    
+    void executeTestSaveEditDeleteFile(boolean privatePath) throws Throwable {
         String testFilePath = "testfolder/test.txt";
-        InputStream stream = cdsStorageManager.getStream(testFilePath, false);
-        Assertions.assertNull(stream);
+        InputStream stream = null;
         try {
+            stream = cdsStorageManager.getStream(testFilePath, privatePath);
+            Assertions.assertNull(stream);
             String content = "Content of new text file";
-            cdsStorageManager.saveFile(testFilePath, false, new ByteArrayInputStream(content.getBytes()));
-            Assertions.assertTrue(cdsStorageManager.exists(testFilePath, false));
-            stream = cdsStorageManager.getStream(testFilePath, false);
+            cdsStorageManager.saveFile(testFilePath, privatePath, new ByteArrayInputStream(content.getBytes()));
+            Assertions.assertTrue(cdsStorageManager.exists(testFilePath, privatePath));
+            stream = cdsStorageManager.getStream(testFilePath, privatePath);
             Assertions.assertNotNull(stream);
             String extractedString = IOUtils.toString(stream, "UTF-8");
             stream.close();
             Assertions.assertEquals(content, extractedString);
             String newContent = "This is the new content of text file";
-            cdsStorageManager.editFile(testFilePath, false, new ByteArrayInputStream(newContent.getBytes()));
-            stream = cdsStorageManager.getStream(testFilePath, false);
+            cdsStorageManager.editFile(testFilePath, privatePath, new ByteArrayInputStream(newContent.getBytes()));
+            stream = cdsStorageManager.getStream(testFilePath, privatePath);
             String extractedNewString = IOUtils.toString(stream, "UTF-8");
             stream.close();
             Assertions.assertEquals(newContent, extractedNewString);
-            String readfileAfterWriteBackup = cdsStorageManager.readFile(testFilePath, false);
+            String readfileAfterWriteBackup = cdsStorageManager.readFile(testFilePath, privatePath);
             Assertions.assertEquals(extractedNewString.trim(), readfileAfterWriteBackup.trim());
-            boolean deleted = cdsStorageManager.deleteFile(testFilePath, false);
+            boolean deleted = cdsStorageManager.deleteFile(testFilePath, privatePath);
             assertTrue(deleted);
-            Assertions.assertFalse(cdsStorageManager.exists(testFilePath, false));
-            stream = cdsStorageManager.getStream(testFilePath, false);
+            Assertions.assertFalse(cdsStorageManager.exists(testFilePath, privatePath));
+            stream = cdsStorageManager.getStream(testFilePath, privatePath);
             Assertions.assertNull(stream);
         } catch (Throwable t) {
             throw t;
@@ -198,8 +204,8 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
             if (null != stream) {
                 stream.close();
             }
-            cdsStorageManager.deleteDirectory("testfolder/", false);
-            InputStream streamBis = cdsStorageManager.getStream(testFilePath, false);
+            cdsStorageManager.deleteDirectory("testfolder/", privatePath);
+            InputStream streamBis = cdsStorageManager.getStream(testFilePath, privatePath);
             Assertions.assertNull(streamBis);
         }
         // file not found case
