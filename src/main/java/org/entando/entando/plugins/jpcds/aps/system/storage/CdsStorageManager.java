@@ -275,7 +275,7 @@ public class CdsStorageManager extends LocalStorageManager implements IStorageMa
         try {
             if (this.isEnabled() && !isProtectedResource) {
                 TenantConfig config = this.getTenantConfig();
-                return this.validateAndReturnResourcePath(config, "", isProtectedResource);
+                return this.validateAndReturnResourcePath(config, subPath, isProtectedResource);
             }
             return super.getResourceUrl(subPath, isProtectedResource); // protected resources are serverd everytime from de-app
         } catch (Exception e) {
@@ -554,7 +554,7 @@ public class CdsStorageManager extends LocalStorageManager implements IStorageMa
     
     protected String validateAndReturnResourcePath(TenantConfig config, String resourceRelativePath, boolean privateUrl) {
         try {
-            String baseUrl = this.getCheckedBaseUrl(config, privateUrl);
+            String baseUrl = this.getCheckedBaseUrl(config, privateUrl) + URL_SEP + this.getInternalSection(privateUrl);
             String fullPath = this.createPath(baseUrl, resourceRelativePath);
             if (!StorageManagerUtil.doesPathContainsPath(baseUrl, fullPath, true)) {
                 throw mkPathValidationErr(baseUrl, fullPath);
