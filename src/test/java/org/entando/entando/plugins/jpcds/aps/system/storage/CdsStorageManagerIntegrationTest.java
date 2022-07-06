@@ -286,12 +286,13 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
     
     @Test
     void testGetResourceUrl() throws Throwable {
-        String expected = "https://cds.sme.entando.org/public/";
-        Assertions.assertEquals(expected, this.cdsStorageManager.getBaseResourceUrl(true));
-        Assertions.assertEquals(expected, this.cdsStorageManager.getBaseResourceUrl(false));
+        String expected = "https://cds.sme.entando.org/public";
+        String expectedProtected = "https://cds.sme.entando.org/protected";
+        Assertions.assertEquals(expectedProtected, this.cdsStorageManager.createFullPath("", true));
+        Assertions.assertEquals(expected, this.cdsStorageManager.createFullPath("", false));
         EntThreadLocal.set(ITenantManager.THREAD_LOCAL_TENANT_CODE, "tenant");
-        Assertions.assertEquals(expected, this.cdsStorageManager.getBaseResourceUrl(true));
-        Assertions.assertEquals(expected, this.cdsStorageManager.getBaseResourceUrl(false));
+        Assertions.assertEquals(expectedProtected, this.cdsStorageManager.createFullPath("", true));
+        Assertions.assertEquals(expected, this.cdsStorageManager.createFullPath("", false));
         EntThreadLocal.remove(ITenantManager.THREAD_LOCAL_TENANT_CODE);
     }
     

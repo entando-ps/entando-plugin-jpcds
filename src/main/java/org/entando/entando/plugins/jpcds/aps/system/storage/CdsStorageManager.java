@@ -92,15 +92,6 @@ public class CdsStorageManager extends LocalStorageManager implements IStorageMa
     private ITenantManager tenantManager;
     
     @Override
-    public String getBaseResourceUrl(boolean isProtected) {
-        if (!this.isEnabled()) {
-            return super.getBaseResourceUrl(isProtected);
-        }
-        TenantConfig config = this.getTenantConfig();
-        return this.getCheckedBaseUrl(config, false) + URL_SEP + SECTION_PUBLIC + URL_SEP;
-    }
-    
-    @Override
     public void createDirectory(String subPath, boolean isProtectedResource) {
         if (!this.isEnabled()) {
             super.createDirectory(subPath, isProtectedResource);
