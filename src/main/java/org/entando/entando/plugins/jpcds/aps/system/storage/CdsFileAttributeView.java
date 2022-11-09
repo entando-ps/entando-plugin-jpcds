@@ -50,7 +50,7 @@ public class CdsFileAttributeView implements Serializable {
     public Date getDate() {
         String timeString = this.getLast_modified_time().get(LONG_TIME_PARAM_NAME);
         if (!StringUtils.isBlank(timeString)) {
-            return new Date(Long.valueOf(timeString));
+            return new Date(Long.valueOf(timeString)*1000);
         }
         return null;
     }

@@ -21,6 +21,12 @@ import java.io.Serializable;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class CdsCreateResponse implements Serializable {
+    
+    private String status;
+    private String filename;
+    private Long date;
+    private String path;
+    private boolean is_protected_file;
 
     public String getStatus() {
         return status;
@@ -61,12 +67,5 @@ public class CdsCreateResponse implements Serializable {
     public void setIs_protected_file(boolean is_protected_file) {
         this.is_protected_file = is_protected_file;
     }
-    
-    private String status;
-private String filename;
-private Long date;
-private String path;
-private boolean is_protected_file;
-    
-    
+
 }
