@@ -286,8 +286,8 @@ class CdsStorageManagerIntegrationTest extends BaseTestCase {
     
     @Test
     void testGetResourceUrl() throws Throwable {
-        String expected = "https://cds.sme.entando.org/public";
-        String expectedProtected = "https://cds.sme.entando.org/protected";
+        String expected = "http://cds.10-219-168-112.nip.io/primary/public";
+        String expectedProtected = "http://cds.10-219-168-112.nip.io/protected";
         Assertions.assertEquals(expectedProtected, this.cdsStorageManager.createFullPath("", true));
         Assertions.assertEquals(expected, this.cdsStorageManager.createFullPath("", false));
         EntThreadLocal.set(ITenantManager.THREAD_LOCAL_TENANT_CODE, "tenant");

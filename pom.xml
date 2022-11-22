@@ -5,11 +5,11 @@
     <parent>
         <groupId>org.entando</groupId>
         <artifactId>entando-core-parent</artifactId>
-        <version>6.5.0-MT</version>
+        <version>7.1.1-MT</version>
     </parent>
     <artifactId>entando-plugin-jpcds</artifactId>
     <groupId>org.entando.entando.plugins</groupId>
-    <version>6.5.0-MT</version>
+    <version>7.1.1-MT</version>
     <packaging>war</packaging>
     <name>Entando Plugin: Content Delivery Server Connector</name>
     <description>Enables the use of Content Delivery Server</description>
@@ -100,10 +100,10 @@
 [{
     "tenantCode": "tenant",
     "kcEnabled": true,
-    "kcAuthUrl": "https://mt-kc-multitenancy-dev.sme.entando.org/auth",
+    "kcAuthUrl": "http://10-219-168-112.nip.io/auth",
     "kcRealm": "entando",
-    "kcClientId": "mt-server",
-    "kcClientSecret": "395c67e4-e95f-4609-88b3-8da8e830f654",
+    "kcClientId": "quickstart",
+    "kcClientSecret": "2837772a-f583-4dd5-8d89-9147a89dc60e",
     "kcPublicClientId": "entando-web",
     "kcSecureUris": "",
     "kcDefaultAuthorizations": "",
@@ -111,20 +111,20 @@
     "dbUrl": "jdbc:postgresql://testDbServer:5432/tenantDb2",
     "dbUsername": "db_user_1",
     "dbPassword": "db_password_1",
-    "cdsPublicUrl": "https://cds.sme.entando.org/",
-    "cdsPrivateUrl": "https://cds.sme.entando.org/",
+    "cdsPublicUrl": "http://cds.10-219-168-112.nip.io/tenant1",
+    "cdsPrivateUrl": "http://tenant1-cds:8080",
     "cdsPath": "api/v1"
 }]
 ]]>
                         </ENTANDO_TENANTS>
                         <CDS_ENABLED>true</CDS_ENABLED>
-                        <CDS_PUBLIC_URL>https://cds.sme.entando.org</CDS_PUBLIC_URL>
-                        <CDS_PRIVATE_URL>https://cds.sme.entando.org</CDS_PRIVATE_URL>
+                        <CDS_PUBLIC_URL>http://cds.10-219-168-112.nip.io/primary</CDS_PUBLIC_URL>
+                        <CDS_PRIVATE_URL>http://cds.10-219-168-112.nip.io</CDS_PRIVATE_URL>
                         <CDS_PATH>/api/v1</CDS_PATH>
-                        <KEYCLOAK_AUTH_URL>https://mt-kc-multitenancy-dev.sme.entando.org/auth</KEYCLOAK_AUTH_URL>
+                        <KEYCLOAK_AUTH_URL>http://10-219-168-112.nip.io/auth</KEYCLOAK_AUTH_URL>
                         <KEYCLOAK_REALM>entando</KEYCLOAK_REALM>
-                        <KEYCLOAK_CLIENT_ID>mt-server</KEYCLOAK_CLIENT_ID>
-                        <KEYCLOAK_CLIENT_SECRET>395c67e4-e95f-4609-88b3-8da8e830f654</KEYCLOAK_CLIENT_SECRET>
+                        <KEYCLOAK_CLIENT_ID>quickstart</KEYCLOAK_CLIENT_ID>
+                        <KEYCLOAK_CLIENT_SECRET>2837772a-f583-4dd5-8d89-9147a89dc60e</KEYCLOAK_CLIENT_SECRET>
                         <LOG_LEVEL>INFO</LOG_LEVEL>
                     </environmentVariables>
                 </configuration>
@@ -138,7 +138,7 @@
             <dependency>
                 <groupId>org.entando</groupId>
                 <artifactId>entando-core-bom</artifactId>
-                <version>6.5.0-MT</version>
+                <version>7.1.1-MT</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -252,6 +252,12 @@
         <dependency>
             <groupId>org.apache.derby</groupId>
             <artifactId>derby</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.5.0</version>
+            <scope>test</scope>
         </dependency>
         
     </dependencies>
